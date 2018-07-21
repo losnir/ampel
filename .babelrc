@@ -1,4 +1,18 @@
 {
   "presets": ["env"],
-  "plugins": []
+  "plugins": [],
+  "env": {
+    "development": {
+      "ignore": [
+        "**/__tests__",
+        "**/*.test.js"
+      ]
+    },
+    "production": {
+      "ignore": [
+        "**/__tests__",
+        "**/*.test.js"
+      ]
+    }
+  }
 }

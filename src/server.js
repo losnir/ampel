@@ -7,7 +7,6 @@ DNSCache({
   ttl: 1800
 });
 
-// import express from 'express';
 import request from 'request';
 
 import Config from '../config.json';
