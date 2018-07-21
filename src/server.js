@@ -1,27 +1,15 @@
 import http from 'http';
-import URL from 'url';
-
-import DNSCache from 'dnscache';
-DNSCache({
-  enable: true,
-  ttl: 1800
-});
-
-import request from 'request';
 
 import Config from '../config.json';
 import * as Handlers from './handlers';
+import Backend from './lib/Backend';
 
 
-const PORT = 8080;
-const UPSTREAM_HOSTNAMES = Config.backends.map(backend => {
-  const { hostname, port, pathname } = new URL.URL(backend);
-  return { hostname, port, pathname };
-});
+const PORT = process.env.PORT || 8080;
+const UPSTREAM_HOSTNAMES = Config.backends.map(url => new Backend(url));
 
 const GET = Handlers.GET(UPSTREAM_HOSTNAMES);
 const POST = Handlers.POST(UPSTREAM_HOSTNAMES);
-
 
 const ampel = http.createServer(function (req, res) {
   try {

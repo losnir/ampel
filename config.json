@@ -1,7 +1,7 @@
 {
   "backends": [
-    "http://google.com/1",
-    "http://google.com/2",
-    "http://google.com/3"
+    "http://138.197.199.168:1338",
+    "http://138.197.199.168:1338",
+    "http://138.197.199.168:1338"
   ]
 }

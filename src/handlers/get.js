@@ -1,8 +1,7 @@
 import Request from '../lib/Request';
 
-import request from 'request';
 import RoundRobin from '../lib/roundRobin';
-import { getRemoteAddress } from '../utils/';
+import { getRemoteAddress } from '../utils';
 
 export default function AmplerHandlerGET (backends) {
   if (!backends || backends.constructor !== Array || backends.length < 1) {
@@ -11,13 +10,6 @@ export default function AmplerHandlerGET (backends) {
   const robin = RoundRobin(backends.length);
   return function GET (req, res) {
     const server = backends[robin()];
-  
-    // let url = node;
-    // if (req.url !== '/') {
-    //   url += req.url;
-    // }
-      // const upstream = request({ url });
-
     const _options = Object.assign({}, {
       protocol: 'http:',
       method: req.method,
@@ -25,10 +17,11 @@ export default function AmplerHandlerGET (backends) {
         'X-Forwarded-For': getRemoteAddress(req), // TODO Augemnt XFF if it exists
       })
     });
-    const upstream = new Request(server, _options, upstreamRes => {
+    const onResponse = function (upstreamReq, upstreamRes) {
       res.setHeader('X-Served-By', getRemoteAddress(upstreamRes));
       upstreamRes.pipe(res);
-    });
+    }
+    const upstream = new Request(server, _options, onResponse);
     upstream.pipe(req);
   }
 }
