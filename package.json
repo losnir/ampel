@@ -1,0 +1,27 @@
+{
+  "name": "ampel",
+  "version": "1.0.0",
+  "description": "Ampel is a lightweight, dependency free load balancer that is suitable to no real production use cases. Enjoy.",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon src/server.js --exec 'babel-node --inspect=5858'",
+    "build": "babel src -d dist",
+    "preserve": "npm run build",
+    "serve": "node dist/server.js",
+    "test": "jest"
+  },
+  "author": "Nir Azuelos <nirazuelos@gmail.com>",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-jest": "^23.4.0",
+    "babel-preset-env": "^1.7.0",
+    "dnscache": "^1.0.1",
+    "express": "^4.16.3",
+    "jest": "^23.4.1",
+    "nodemon": "^1.18.3",
+    "regenerator-runtime": "^0.12.0",
+    "request": "^2.87.0"
+  }
+}
