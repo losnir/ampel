@@ -72,7 +72,7 @@ function reportMetric (data) {
   req.on('error', (e) => {
     if (!isInErrorCooldownPeriod()) {
       lastErrorAt = +new Date();
-      console.log('Failed to reportMetric metric.', e);
+      console.log('Failed to report metric.', e);
     }
   });
   req.write(data);
