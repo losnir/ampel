@@ -14,19 +14,21 @@ export default class Request {
       host: this.server.hostname,
       hostname: this.server.hostname,
       port: this.server.port || 80,
-      timeout: DEFAULT_TIMEOUT_IN_MS
     });
     this.options.headers.host = this.options.host + ':' + this.options.port;
   }
 
   dispatch() {
+    this._free();
     console.log(this._log(`Dispatching request to backend server ${this.server.formatted}.`));
     Monitoring.report('outbound', `upstream=${this.server.formatted},method={${this.options.method}},path=${this.options.path}`);
     try {
       this.req = http.request(this.options, this._handleResponse.bind(this));
+      this.req.setTimeout(DEFAULT_TIMEOUT_IN_MS);
       this.req.on('timeout', this._handleTimeoutReached.bind(this))
       this.req.on('end', this._handleEnd.bind(this));
       this.req.on('error', this._handleError.bind(this));
+      this.pipe();
     } catch (e) {
       this._handleError(e);
     } 
@@ -46,8 +48,22 @@ export default class Request {
   }
 
   pipe (downstream) {
-    if (this.req) {
-      downstream.pipe(this.req);
+    if(downstream) {
+      this.downstream = downstream;
+    }
+    if (this.req && this.downstream) {
+      this.downstream.pipe(this.req);
+    }
+  }
+
+  consume () {
+    // Consume the response object to free up memory and eventually close the connection.
+    if (this.res && this.res.consume) {
+      this.res.consume();
+      return;
+    }
+    if (this.res && this.res.read) {
+      this.res.read();
     }
   }
 
@@ -63,15 +79,15 @@ export default class Request {
     this.onResponse = callback;
   }
 
-  setOnTimeout (callback) {
-    this.onTimeout = callback;
+  setOnError (callback) {
+    this.onError = callback;
   }
 
   _handleResponse (res) {
     this.res = res;
     res.setEncoding('utf8');
     if (this.onResponse) {
-      this.onResponse(this, res);
+      this.onResponse(this);
     }
   }
 
@@ -80,15 +96,16 @@ export default class Request {
   }
 
   _handleTimeoutReached () {
-    console.error(this._log(`Connection timed out after ${DEFAULT_TIMEOUT_IN_MS} ms.`));
-    this.req.abort();
+    if (this.req){
+      this.req.abort();
+    }
   }
 
   _handleTimeout () {
-    console.log(this._log('Connection reset.'));
-    if (this.onTimeout) {
-      if (!this.onTimeout(this)) {
-        this._destroy();
+    console.error(this._log(`Connection timed out after ${DEFAULT_TIMEOUT_IN_MS} ms.`));
+    if (this.onError) {
+      if (!this.onError(this)) {
+        this.abort();
         return;
       }
     }
@@ -97,7 +114,7 @@ export default class Request {
     }
     if (this.retryHelper.hasReachedMaximumWait()) {
       console.error(this._log('Reached maximum wait time. Abandoning.'));
-      this._destroy();
+      this.abort();
       return;
     }
     this.retry();
@@ -111,16 +128,19 @@ export default class Request {
       this._handleTimeout();
       return;
     }
+    if (e.code === 'ECONNREFUSED') {
+      if (this.onError) {
+        this.onError(this);
+      }
+      this.abort();
+      return;
+    }
     console.error(this._log('Connection error'), e);
     this.retry();
   }
 
   _free () {
-    // Consume the response object to free up memory and eventually close the connection.
-    if (this.res) {
-      this.res.consume();
-      this.res.end();
-    }
+    this.consume();
     if (this.req) {
       this.req.end();
     }
@@ -136,11 +156,12 @@ export default class Request {
     this._free();
     this.id = null;
     this.server = null;
-    this.retryHelper = null;
+    this.downstream = null;
     this.retryId = null;
+    this.retryHelper = null;
     this.options = null;
     this.onResponse = null;
-    this.onTimeout = null;
+    this.onError = null;
   }
 
   _log (message) {

@@ -37,8 +37,9 @@ export default class Swarm {
     this.timeoutId = setTimeout(this._handleTimeout.bind(this), DEFAULT_TIMEOUT_IN_MS);
   }
 
-  _handleResponse (req, res) {
+  _handleResponse (req) {
     clearTimeout(this.timeoutId);
+    const res = req.res;
     const code = res.statusCode;
     const id = req.id;
     if (code !== 201) {
@@ -46,6 +47,7 @@ export default class Swarm {
       req.retry();
     }
     if (this.responded) {
+      req.consume();
       return;
     }
     this.res.setHeader('X-Served-By', getRemoteAddress(res));

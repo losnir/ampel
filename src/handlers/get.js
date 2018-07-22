@@ -20,11 +20,11 @@ export default function AmplerHandlerGET (backends) {
       path: req.url
     });
     const upstream = new Request(server, _options);
-    upstream.setOnResponse(function (upstreamReq, upstreamRes) {
-      res.setHeader('X-Served-By', getRemoteAddress(upstreamRes));
-      upstreamRes.pipe(res);
+    upstream.setOnResponse(function (upstreamReq) {
+      res.setHeader('X-Served-By', getRemoteAddress(upstreamReq.res));
+      upstreamReq.res.pipe(res);
     });
-    upstream.setOnTimeout(function (upstreamReq) {
+    upstream.setOnError(function (upstreamReq) {
       res.writeHead(502);
       res.end('502 Bad Gateway');
       upstreamReq.abort();
