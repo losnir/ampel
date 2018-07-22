@@ -68,6 +68,9 @@ function report (name, data) {
 }
 
 function reportMetric (data) {
+  if (!Config.metrics.enabled) {
+    return;
+  }
   const req = http.request(requestOptions);
   req.on('error', (e) => {
     if (!isInErrorCooldownPeriod()) {
