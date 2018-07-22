@@ -1,20 +1,20 @@
 # 🚦 Ampel
 
 <img src="https://losnir.github.io/ampel/ampel.svg" align="right"
-     title="Size Limit logo by Anton Lovchikov" width="120" height="140">
+     title="Size Limit logo by Anton Lovchikov" width="111" height="120">
 
-Ampel is a lightweight, dependency free* load balancer that is suitable to no real production use cases. Enjoy. :sparkles:
+Ampel is a lightweight, dependency free* load balancer that is tailored to one specific use case. Enjoy. :sparkles:
 
 \* Well, almost dependency free. It requires only `appmetrics` for production in order to easily expose internal Node.js metrics.
 
 ## Architecture
 
-The design is simple, we create a vanilla Node.js HTTP server, and for each incoming request (`GET`/`POST`) we open a connection to the upstream backends using `http.request`. The request payload and response are elagantally `.pipe()`'d to each other for simplicity.
+The design is simple, the process creates a vanilla Node.js HTTP server, and for each incoming request (`GET`/`POST`) it opens a connection to the upstream backends using `http.request`. The request payload and response are elegantly `.pipe()`'d to each other for simplicity.
 
 ## Features
 
-:heavy_check_mark: All `GET` reqeusts are served using a round robin method.\
-:heavy_check_mark: All `POST` requests are sent to all upstream backends, with the first responder evantually serving the incoming request.\
+:heavy_check_mark: All `GET` requests are served using a round robin method.\
+:heavy_check_mark: All `POST` requests are sent to all upstream backends, with the first responder eventually serving the incoming request.\
 :heavy_check_mark: Exponential back-off retry interval.\
 :heavy_check_mark: Exposes Graphite protocol metrics (currently only supports `InfluxDB` API).
 
@@ -54,7 +54,7 @@ The structure is as follows:
     "enabled": true,     // Enable metrics reporting?
     "host": "127.0..1"   // InfluxDB host
     "port": "8086",      // InfluxDB port
-    "database": "ampe"   // InfluxDB database name
+    "database": "ampel"  // InfluxDB database name
   }
 }
 ```
@@ -67,7 +67,7 @@ Ampel is using Babel. There is a special npm script to spin-up a development bui
 $ npm run start:dev
 ```
 
-You can also run with debugging abillities (uses `node --inspect` on port `5858`):
+You can also run with debugging enabled (uses `node --inspect` on port `5858`):
 
 ```
 $ npm run start:inspect
