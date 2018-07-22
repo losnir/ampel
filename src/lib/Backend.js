@@ -1,17 +1,17 @@
-import { URL } from 'url';
+import URL from 'url';
 export default class Backend {
-  constructor (url) {
-    const { hostname, port, pathname } = new URL(url);
-    this.hostname = hostname;
-    this.port = port;
-    this.pathname = pathname;
+  constructor (options) {
+    if (!options || options.constructor!== Object) {
+      throw new Error('Backend options must be an object.'); 
+    }
+    if (!options.host) {
+      throw new Error('Please specify host');
+    }
+    this.hostname = options.host;
+    this.port = options.port || '80';
   }
 
   get formatted () {
-    let str = this.hostname + ':' + this.port;
-    if (this.pathname !== '/') {
-      str += this.pathname;
-    }
-    return str;
+    return this.hostname + ':' + this.port;
   }
 }

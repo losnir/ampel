@@ -1,15 +1,16 @@
 import http from 'http';
+import Monitoring from './monitoring';
+Monitoring.start();
 
 import Config from '../config.json';
-import * as Handlers from './handlers';
 import Backend from './lib/Backend';
-
+import * as Handlers from './handlers';
 
 const PORT = process.env.PORT || 8080;
-const UPSTREAM_HOSTNAMES = Config.backends.map(url => new Backend(url));
+const UPSTREAM_BACKENDS = Config.backends.map(url => new Backend(url));
 
-const GET = Handlers.GET(UPSTREAM_HOSTNAMES);
-const POST = Handlers.POST(UPSTREAM_HOSTNAMES);
+const GET = Handlers.GET(UPSTREAM_BACKENDS);
+const POST = Handlers.POST(UPSTREAM_BACKENDS);
 
 const ampel = http.createServer(function (req, res) {
   try {
@@ -26,7 +27,7 @@ const ampel = http.createServer(function (req, res) {
   catch (e) {
     console.error(e);
     res.writeHead(500);
-    res.end('Internal Server Error');
+    res.end('500 Internal Server Error');
   }
 });
 

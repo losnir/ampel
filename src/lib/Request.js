@@ -1,30 +1,29 @@
 import http from 'http';
+import Monitoring from '../monitoring';
 import ExponentialRetry from '../utils/exponentialRetry';
 import uniqueId from '../utils/uniqueId';
 
 const DEFAULT_TIMEOUT_IN_MS = 5000;
 
 export default class Request {
-  constructor (server, _options, callback) {
+  constructor (server, _options) {
     this.id = uniqueId();
     this.server = server;
-    this.callback = callback;
     this.retryHelper = new ExponentialRetry();
     this.options = Object.assign({}, _options, {
       host: this.server.hostname,
       hostname: this.server.hostname,
       port: this.server.port || 80,
-      path: this.server.pathname
+      timeout: DEFAULT_TIMEOUT_IN_MS
     });
     this.options.headers.host = this.options.host + ':' + this.options.port;
-    this.dispatch();
   }
 
   dispatch() {
     console.log(this._log(`Dispatching request to backend server ${this.server.formatted}.`));
+    Monitoring.report('outbound', `upstream=${this.server.formatted},method={${this.options.method}},path=${this.options.path}`);
     try {
       this.req = http.request(this.options, this._handleResponse.bind(this));
-      this.req.setTimeout(DEFAULT_TIMEOUT_IN_MS);
       this.req.on('timeout', this._handleTimeoutReached.bind(this))
       this.req.on('end', this._handleEnd.bind(this));
       this.req.on('error', this._handleError.bind(this));
@@ -34,12 +33,16 @@ export default class Request {
   }
 
   retry () {
+    if (this.aborted) {
+      return;
+    }
+    this._free();
     const wait = this.retryHelper.getRetryWait();
     if (wait === false) {
       return;
     }
     console.log(this._log(`Retrying connection in ${wait} ms.`));
-    setTimeout(() => this.dispatch(), wait);
+    this.retryId = setTimeout(() => this.dispatch(), wait);
   }
 
   pipe (downstream) {
@@ -48,15 +51,32 @@ export default class Request {
     }
   }
 
+  abort () {
+    this.aborted = true;
+    if (this.req) {
+      this.req.abort();
+    }
+    this._destroy();
+  }
+
+  setOnResponse (callback) {
+    this.onResponse = callback;
+  }
+
+  setOnTimeout (callback) {
+    this.onTimeout = callback;
+  }
+
   _handleResponse (res) {
+    this.res = res;
     res.setEncoding('utf8');
-    if (this.callback) {
-      this.callback(this, res);
+    if (this.onResponse) {
+      this.onResponse(this, res);
     }
   }
 
   _handleEnd () {
-    this._free();
+    this._destroy();
   }
 
   _handleTimeoutReached () {
@@ -66,8 +86,18 @@ export default class Request {
 
   _handleTimeout () {
     console.log(this._log('Connection reset.'));
+    if (this.onTimeout) {
+      if (!this.onTimeout(this)) {
+        this._destroy();
+        return;
+      }
+    }
+    if (this.aborted) {
+      return;
+    }
     if (this.retryHelper.hasReachedMaximumWait()) {
       console.error(this._log('Reached maximum wait time. Abandoning.'));
+      this._destroy();
       return;
     }
     this.retry();
@@ -75,6 +105,9 @@ export default class Request {
 
   _handleError (e) {
     if (e.code === 'ECONNRESET') {
+      if (this.aborted) {
+        return;
+      }
       this._handleTimeout();
       return;
     }
@@ -84,13 +117,30 @@ export default class Request {
 
   _free () {
     // Consume the response object to free up memory and eventually close the connection.
-    this.res.consume();
-    this.res.end();
-    this.req.end();
+    if (this.res) {
+      this.res.consume();
+      this.res.end();
+    }
+    if (this.req) {
+      this.req.end();
+    }
+    if (this.retryId) {
+      clearTimeout(this.retryId);
+      this.retryId = null;
+    }
     this.req = null;
     this.res = null;
-    this.callback = null;
+  }
+
+  _destroy () {
+    this._free();
+    this.id = null;
     this.server = null;
+    this.retryHelper = null;
+    this.retryId = null;
+    this.options = null;
+    this.onResponse = null;
+    this.onTimeout = null;
   }
 
   _log (message) {

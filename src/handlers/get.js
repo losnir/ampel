@@ -1,7 +1,7 @@
 import Request from '../lib/Request';
-
+import Monitoring from '../monitoring';
 import RoundRobin from '../lib/roundRobin';
-import { getRemoteAddress } from '../utils';
+import { getRemoteAddress, getXFF } from '../utils';
 
 export default function AmplerHandlerGET (backends) {
   if (!backends || backends.constructor !== Array || backends.length < 1) {
@@ -9,19 +9,28 @@ export default function AmplerHandlerGET (backends) {
   }
   const robin = RoundRobin(backends.length);
   return function GET (req, res) {
+    Monitoring.report('inbound', `method={${req.method}},path=${req.url}`);
     const server = backends[robin()];
     const _options = Object.assign({}, {
       protocol: 'http:',
       method: req.method,
       headers: Object.assign({}, req.headers, {
-        'X-Forwarded-For': getRemoteAddress(req), // TODO Augemnt XFF if it exists
-      })
+        'X-Forwarded-For': getXFF(req),
+      }),
+      path: req.url
     });
-    const onResponse = function (upstreamReq, upstreamRes) {
+    const upstream = new Request(server, _options);
+    upstream.setOnResponse(function (upstreamReq, upstreamRes) {
       res.setHeader('X-Served-By', getRemoteAddress(upstreamRes));
       upstreamRes.pipe(res);
-    }
-    const upstream = new Request(server, _options, onResponse);
+    });
+    upstream.setOnTimeout(function (upstreamReq) {
+      res.writeHead(502);
+      res.end('502 Bad Gateway');
+      upstreamReq.abort();
+      return false;
+    });
+    upstream.dispatch();
     upstream.pipe(req);
   }
 }

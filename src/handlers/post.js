@@ -1,4 +1,3 @@
-// import request from 'request';
 import Swarm from '../lib/Swarm';
 
 export default function AmplerHandlerPOST (backends) {

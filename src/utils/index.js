@@ -1,1 +1,1 @@
-export { default as getRemoteAddress } from './getRemoteAddress';
+export * from './network';

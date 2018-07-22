@@ -1,6 +1,9 @@
 import Request from './Request';
-import { getRemoteAddress } from '../utils';
+import Monitoring from '../monitoring';
 import uniqueId from '../utils/uniqueId';
+import { getRemoteAddress, getXFF } from '../utils';
+
+const DEFAULT_TIMEOUT_IN_MS = 10000;
 
 export default class Swarm {
   constructor (backends, req, res) {
@@ -8,31 +11,38 @@ export default class Swarm {
     this.backends = backends;
     this.req = req;
     this.res = res;
+    this.proxies = [];
     this.responded = false;
   }
 
   dispatch () {
     console.log(this._log('Dispatching a Swarm request...'));
+    Monitoring.report('inbound', `method={${this.req.method}},path=${this.req.url}`);
     const _options = Object.assign({}, {
       protocol: 'http:',
       method: this.req.method,
       headers: Object.assign({}, this.req.headers, {
-        'X-Forwarded-For': getRemoteAddress(this.req), // TODO Augemnt XFF if it exists
-      })
+        'X-Forwarded-For': getXFF(this.req),
+      }),
+      path: this.req.url
     });
-    // TODO Move to for loop
-    const requests = this.backends.map(server => {
-      const upstream = new Request(server, _options, this._handleResponse.bind(this));
+    for (let i = 0; i < this.backends.length; i++) {
+      const upstream = new Request(this.backends[i], _options);
+      upstream.setOnResponse(this._handleResponse.bind(this));
+      upstream.dispatch();
       upstream.pipe(this.req);
-      return upstream;
-    });
+      this.proxies.push(upstream);
+    }
+    this.started = +new Date();
+    this.timeoutId = setTimeout(this._handleTimeout.bind(this), DEFAULT_TIMEOUT_IN_MS);
   }
 
   _handleResponse (req, res) {
+    clearTimeout(this.timeoutId);
     const code = res.statusCode;
     const id = req.id;
     if (code !== 201) {
-      console.log(this._log(`Received status code ${code} from one of the upstream backends (Id: ${id}. Retrying...`));
+      console.log(this._log(`Received status code ${code} from one of the upstream backends (Id: ${id}). Retrying...`));
       req.retry();
     }
     if (this.responded) {
@@ -41,6 +51,17 @@ export default class Swarm {
     this.res.setHeader('X-Served-By', getRemoteAddress(res));
     res.pipe(this.res);
     this.responded = true;
+  }
+
+  _handleTimeout () {
+    if (!this.responded) {
+      console.log(this._log(`Swarm timed out. None of the upstream backends has responded. Aborting.`));
+      this.res.writeHead(502);
+      this.res.end('502 Bad Gateway');
+      for (let i = 0; i < this.proxies.length; i++) {
+        this.proxies[i].abort();
+      };
+    }
   }
 
   _log (message) {
