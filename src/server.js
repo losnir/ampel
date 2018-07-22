@@ -6,7 +6,7 @@ import Config from '../config.json';
 import Backend from './lib/Backend';
 import * as Handlers from './handlers';
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 80;
 const UPSTREAM_BACKENDS = Config.backends.map(url => new Backend(url));
 
 const GET = Handlers.GET(UPSTREAM_BACKENDS);
