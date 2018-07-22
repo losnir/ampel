@@ -1,7 +1,7 @@
 {
   "name": "ampel",
   "version": "1.0.0",
-  "description": "Ampel is a lightweight, dependency free load balancer that is suitable to no real production use cases. Enjoy.",
+  "description": "Ampel is a lightweight, dependency free load balancer that is tailored to a one specific use case. Enjoy.",
   "main": "index.js",
   "scripts": {
     "start": "node dist/server.js",
