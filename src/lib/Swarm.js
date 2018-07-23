@@ -41,12 +41,13 @@ export default class Swarm {
     const res = req.res;
     const code = res.statusCode;
     const id = req.id;
+    if (this.responded) {
+      req.consume();
+      return;
+    }
     if (code !== 201) {
       console.log(this._log(`Received status code ${code} from one of the upstream backends (Id: ${id}). Retrying...`));
       req.retry();
-    }
-    if (this.responded) {
-      req.consume();
       return;
     }
     clearTimeout(this.timeoutId);
