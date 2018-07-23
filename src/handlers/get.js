@@ -22,7 +22,7 @@ export default function AmplerHandlerGET (backends) {
     const upstream = new Request(server, _options);
     upstream.setOnResponse(function (upstreamReq) {
       res.setHeader('X-Served-By', getRemoteAddress(upstreamReq.res));
-      res.statusCode = upstreamReq.res.statusCode;
+      res.writeHead(upstreamReq.res.statusCode, upstreamReq.res.headers);
       upstreamReq.res.pipe(res);
     });
     upstream.setOnError(function (upstreamReq) {

@@ -51,7 +51,7 @@ export default class Swarm {
     }
     clearTimeout(this.timeoutId);
     this.res.setHeader('X-Served-By', getRemoteAddress(res));
-    this.res.statusCode = res.statusCode;
+    this.res.writeHead(res.statusCode, res.headers);
     res.pipe(this.res);
     this.responded = true;
   }
