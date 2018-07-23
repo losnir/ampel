@@ -51,6 +51,7 @@ export default class Swarm {
       return;
     }
     this.res.setHeader('X-Served-By', getRemoteAddress(res));
+    this.res.statusCode = res.statusCode;
     res.pipe(this.res);
     this.responded = true;
   }
