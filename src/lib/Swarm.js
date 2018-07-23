@@ -38,7 +38,6 @@ export default class Swarm {
   }
 
   _handleResponse (req) {
-    clearTimeout(this.timeoutId);
     const res = req.res;
     const code = res.statusCode;
     const id = req.id;
@@ -50,6 +49,7 @@ export default class Swarm {
       req.consume();
       return;
     }
+    clearTimeout(this.timeoutId);
     this.res.setHeader('X-Served-By', getRemoteAddress(res));
     this.res.statusCode = res.statusCode;
     res.pipe(this.res);
@@ -58,7 +58,7 @@ export default class Swarm {
 
   _handleTimeout () {
     if (!this.responded) {
-      console.log(this._log(`Swarm timed out. None of the upstream backends has responded. Aborting.`));
+      console.log(this._log(`Swarm timed out. None of the upstream backends has responded with 201. Aborting.`));
       this.res.writeHead(502);
       this.res.end('502 Bad Gateway');
       for (let i = 0; i < this.proxies.length; i++) {
